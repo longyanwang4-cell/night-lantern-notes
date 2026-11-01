@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>暗夜记录本 Night Lantern Notes</title>
+<style>
+  :root{--bg:#0d0f1a;--card:#171a2b;--amber:#ffb347;--text:#f2ead9;--muted:#9a93ad}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  header{padding:28px 20px 8px;max-width:760px;margin:auto} h1{margin:0;font-size:26px} h1 span{color:var(--amber)}
+  p.sub{color:var(--muted);margin:8px 0 0} main{max-width:760px;margin:auto;padding:16px 20px 40px}
+  .card{background:var(--card);border:1px solid #2a2e4a;border-radius:14px;padding:16px;margin:14px 0}
+  input,textarea{width:100%;background:#0d0f1a;color:var(--text);border:1px solid #33365a;border-radius:10px;padding:10px;margin:6px 0;font-size:15px}
+  textarea{min-height:80px;resize:vertical}
+  button{background:var(--amber);color:#1a1206;border:0;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:700;cursor:pointer}
+  button.ghost{background:transparent;color:var(--text);border:1px solid #33365a}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .note{border-top:1px dashed #33365a;padding:12px 0}.note:first-child{border-top:0}
+  .note h3{margin:0 0 4px}.note time,.note small{color:var(--muted);font-size:13px}
+  .empty{color:var(--muted);text-align:center;padding:20px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🏮 暗夜记录本 <span>Night Lantern Notes</span></h1>
+  <p class="sub">为 Kiroween 2026 参赛而建的单页应用：离线可记，本地保存，一键导出。万圣节暗夜灯笼风，但功能是正经的记录本。</p>
+</header>
+<main>
+  <section class="card">
+    <h2 style="margin:0 0 8px">记一条</h2>
+    <input id="title" placeholder="标题，例如：今晚灯诱记录">
+    <textarea id="body" placeholder="内容，例如：地点、种类、数量、天气……"></textarea>
+    <div class="row"><button id="addBtn">点亮这条记录</button><button class="ghost" id="exportBtn">导出 CSV</button></div>
+    <p style="color:var(--muted);font-size:13px;margin:10px 0 0">数据只存在你这台设备的浏览器里，不上传服务器，断网也能用。</p>
+  </section>
+  <section class="card">
+    <div class="row"><input id="search" placeholder="搜索标题或内容…" style="flex:1"></div>
+    <div id="list"></div>
+  </section>
+</main>
+<script>
+const KEY='night-lantern-notes-v1';
+const $=id=>document.getElementById(id);
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
+function save(v){localStorage.setItem(KEY,JSON.stringify(v))}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function render(){
+  const q=$('search').value.trim().toLowerCase();
+  const notes=load().filter(n=>(n.title+n.body).toLowerCase().includes(q));
+  $('list').innerHTML=notes.length?notes.map((n,i)=>`
+    <article class="note"><h3>${esc(n.title)||'（无标题）'}</h3>
+    <time>${esc(n.createdAt)}</time><p style="white-space:pre-wrap;margin:8px 0">${esc(n.body)}</p>
+    <button class="ghost" onclick="delNote('${n.id}')">删除</button></article>`).join('')
+    :'<p class="empty">还没有记录，上面记第一条吧。</p>';
+}
+function delNote(id){save(load().filter(n=>n.id!==id));render()}
+$('addBtn').onclick=()=>{
+  const title=$('title').value.trim(), body=$('body').value.trim();
+  if(!title && !body){alert('标题和内容至少填一个');return}
+  const v=load();v.unshift({id:Date.now().toString(36)+Math.random().toString(36).slice(2),title,body,createdAt:new Date().toLocaleString()});save(v);
+  $('title').value='';$('body').value='';render();
+};
+$('search').oninput=render;
+$('exportBtn').onclick=()=>{
+  const rows=[['createdAt','title','body'],...load().map(n=>[n.createdAt,n.title,n.body])];
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv'}));a.download='night-lantern-notes.csv';a.click();
+};
+render();
+</script>
+</body>
+</html>
